@@ -1,0 +1,105 @@
+---
+title: "DAhw08"
+author: "Lin,Pei Chen"
+date: "2023-05-12"
+output: html_document
+---
+Q1.
+```{r}
+library(png)
+library(dplyr)
+library(scales)
+library(reshape2)
+library(class)
+
+path <- "C:/Users/simpl/OneDrive/桌面/111_下學期/資料分析方法/HW02/ORL Faces/ORL Faces"
+
+data <- data.frame(matrix(nrow = 0, ncol = 2576),row.names = character())
+
+for (i in 1:40) {
+  for(j in 1:10){
+    file <- file.path(path, paste0( i,"_",j,".png"))
+    img <- readPNG(file)
+    vec <- as.vector(img)
+    data <- rbind(data, vec)
+  }
+}
+gender<-c(rep(0,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(0,10),rep(1,10),rep(0,10),
+          rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),
+          rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),
+          rep(1,10),rep(0,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10),rep(1,10))
+names(data) <- paste0("Pixel", 1:2576)
+
+data_with_label <- cbind(data, gender)
+y<-data_with_label[,2577]
+data_with_label$gender<-data_with_label$gender+1
+set.seed(123)
+
+kmeans_results<-kmeans(data,2)
+
+table(data_with_label$gender,kmeans_results$cluster)
+
+kmeans_acc<-(table(data_with_label$gender,kmeans_results$cluster)[1]+table(data_with_label$gender,kmeans_results$cluster)[4])/length(gender)
+
+
+dist_matrix <- dist(data)
+hclust_result <- hclust(dist_matrix, method = "complete")
+plot(hclust_result)
+clusters <- cutree(hclust_result, k = 2)
+
+table(data_with_label$gender,clusters)
+hclust_acc<-(table(data_with_label$gender,clusters)[1]+table(data_with_label$gender,clusters)[4])/length(gender)
+
+cat("The accuracy of K-means is ",kmeans_acc,"\nThe accuracy of hierarchical clustering is ",hclust_acc)
+```
+兩者分群方法表現皆沒有監督式學習的方法好尤其是hierarchical clustering其acc僅只有0.10左右，並沒有很好的分類出性別來，而k-means相較於hierarchical clustering表現較佳acc有0.50左右。
+
+
+Q2.
+```{r}
+setwd("C:/Users/simpl/OneDrive/桌面/111_下學期/資料分析方法/HW03")
+data <- read.table("auto-mpg.data.txt",header = FALSE,sep = "")
+str(data)
+colnames(data) <- c("mpg","cylinders","displacement","horsepower","weight","acceleration","model_year","origin","car name")
+
+data_withoutcarname<-subset(data,select=c(1:(ncol(data)-1)))
+data_withoutcarname$horsepower <- as.numeric(data_withoutcarname$horsepower)
+
+x<-na.omit(data_withoutcarname)
+data<-x[,1:7]
+kmeans_results<-kmeans(data,3)
+plot(data,col=kmeans_results$cluster)
+table(x$origin,kmeans_results$cluster)
+acc_num<-0
+for(i in c(1,5,9)){
+  acc_num<-acc_num+table(x$origin,kmeans_results$cluster)[i]
+}
+kmeans_acc<-acc_num/length(x$origin)
+
+dist_matrix <- dist(data)
+hclust_result <- hclust(dist_matrix, method = "complete")
+plot(hclust_result)
+clusters <- cutree(hclust_result, k = 3)
+table(x$origin,clusters)
+acc_num<-0
+for(i in c(1,5,9)){
+  acc_num<-acc_num+table(x$origin,clusters)[i]
+}
+hclust_acc<-acc_num/length(x$origin)
+
+library(dbscan)
+data<-as.matrix(data)
+kNNdistplot(data,k=5)
+abline(h=100,col="red",lty=2)
+dbscan_result <- dbscan(data, eps = 100, minPts = 5)
+dbscan_result
+plot(data,col=dbscan_result$cluster)
+table(x$origin,dbscan_result$cluster)
+acc_num<-0
+for(i in c(4,8,12)){
+  acc_num<-acc_num+table(x$origin,dbscan_result$cluster)[i]
+}
+dbscan_acc<-acc_num/length(x$origin)
+cat("The accuracy of K-means is ",kmeans_acc,"\nThe accuracy of hierarchical clustering is ",hclust_acc,"\nThe accuracy of DBSCAN is ",dbscan_acc)
+```
+由上表可以知道，與HW#07-EX3所使用到的監督式學習分群方法相比之下表現皆不佳，而K-means在此資料集的表現相比於hierarchical clustering和DBSCAN的結果表現最差，而DBSCAN表現最佳，我想原因是因為其分群特性可以將origin更好的區隔開來。
